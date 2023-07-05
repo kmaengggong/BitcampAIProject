@@ -51,6 +51,7 @@ for i in range(len(string_columns)):
 # 1.3 NaN값 처리 - 최빈값으로 처리
 # datasets = datasets.fillna(datasets["Credit_Product"].value_counts().idxmax())
 x = datasets.drop(columns=["Is_Lead", "ID"])
+# temp_x = x  # Feature Importances를 위한 임시 x
 # imputer = SimpleImputer()  # 평균값
 # imputer = SimpleImputer(strategy="mean")  # default
 # imputer = SimpleImputer(strategy="median")  # 중간값
@@ -76,32 +77,32 @@ x_test = scaler.transform(x_test)
 # plt.show()
 
 # 1-6. Outlier
-# outlers = np.array([
-#         -50, -10, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-#         11, 12, 13, 14, 15, 16, 17, 18, 50, 100
-# ])
+outlers = np.array([
+        -50, -10, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        11, 12, 13, 14, 15, 16, 17, 18, 50, 100
+])
 
-# def outliers(data_out):
-#     q1, q2, q3 = np.percentile(data_out, [25, 50, 75])
-#     print('1사분위 : ', q1)
-#     print('2사분위 : ', q2)
-#     print('3사분위 : ', q3)
+def outliers(data_out):
+    q1, q2, q3 = np.percentile(data_out, [25, 50, 75])
+    print('1사분위 : ', q1)
+    print('2사분위 : ', q2)
+    print('3사분위 : ', q3)
     
-#     iqr =  q3 - q1
-#     print(iqr)
+    iqr =  q3 - q1
+    print(iqr)
 
-#     lower_bound = q1 - (iqr * 1.5)
-#     upper_bound = q3 + (iqr * 1.5)
-#     print('lower_bound : ', lower_bound)
-#     print('upper_bound : ', upper_bound)
+    lower_bound = q1 - (iqr * 1.5)
+    upper_bound = q3 + (iqr * 1.5)
+    print('lower_bound : ', lower_bound)
+    print('upper_bound : ', upper_bound)
 
-#     return np.where((data_out > upper_bound) | (data_out < lower_bound))
+    return np.where((data_out > upper_bound) | (data_out < lower_bound))
 
-# outlers_loc = outliers(outlers)
-# print('이상치의 위치 : ', outlers_loc)
+outlers_loc = outliers(datasets)
+print('이상치의 위치 : ', outlers_loc)
 
-# plt.boxplot(outlers_loc)
-# plt.show()
+plt.boxplot(outlers_loc)
+plt.show()
 
 # ML
 # n_splits = 7
@@ -141,6 +142,7 @@ x_test = scaler.transform(x_test)
 # model.fit(x_train, y_train)
 # end_time = time.time()
 
+
 # 4. 평가, 예측
 # DL
 # loss, acc = model.evaluate(x_test, y_test)
@@ -156,7 +158,7 @@ x_test = scaler.transform(x_test)
 # 4-1. 데이터 시각화 (Feature Importances, ML)
 # n_features = x.shape[1]
 # plt.barh(range(n_features), model.feature_importances_, align="center")
-# plt.yticks(np.arange(n_features), x.columns)
+# plt.yticks(np.arange(n_features), temp_x.columns)
 # plt.title("Credit Card Feature Importances")
 # plt.ylabel("Feature")
 # plt.xlabel("Importance")
