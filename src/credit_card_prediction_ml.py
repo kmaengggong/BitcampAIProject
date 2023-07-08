@@ -8,18 +8,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+
 from sklearn.covariance import EllipticEnvelope
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.feature_selection import SelectFromModel
+from sklearn.ensemble import VotingClassifier
+from sklearn.model_selection import StratifiedKFold, cross_val_score
 
 # ML
 from catboost import CatBoostClassifier
 from lightgbm import LGBMClassifier
-from sklearn.ensemble import RandomForestClassifier, VotingClassifier
-from sklearn.model_selection import StratifiedKFold, cross_val_score
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
 
 
@@ -36,9 +36,20 @@ label_encoder = LabelEncoder()
 for i in range(len(string_columns)):
     datasets[string_columns[i]] = label_encoder.fit_transform(datasets[string_columns[i]])
 
-# 1.3 Outliers 처리 - EllipticEnvelop 적용
+
+# 1-3. Heatmat & Outliers 처리 - EllipticEnvelop 적용
+# 1-3-1. Heatmap
+# sns.set(font_scale=1.2)
+# sns.set(rc={'figure.figsize' : (9, 6)}) # 가로,세로 사이즈 세팅
+# sns.heatmap(data=datasets.corr(), square=True, annot=True, cbar=True)
+# plt.show()
+
+# 1-3-2. Outliers
 outliers_data = np.array(datasets.Vintage)
 outliers_data = outliers_data.reshape(-1, 1)
+
+# plt.boxplot(outliers_data)
+# plt.show()
 
 outliers = EllipticEnvelope(contamination=.37)  # ML Best Value
 outliers.fit(outliers_data)
@@ -59,29 +70,26 @@ x = imputer.transform(x)
 
 # 1.6 KFold (ML)
 n_splits = 8  # Best Value
-random_state = 88
+random_state = 623
 kfold = StratifiedKFold(n_splits=n_splits, random_state=random_state, shuffle=True)
 
 # 1-7. 스케일링
 scaler = StandardScaler()  # Best Value
 x = scaler.fit_transform(x)
 
-
 # 2. 모델 구성 - VotingClssifier(LGBM, XGB, CatBoot) 사용
-lgbm_model = LGBMClassifier(boost_from_average=True, n_estimators=64, num_leaves=16, n_jobs=-1)
-xgb_model = XGBClassifier(eta=0.1, max_depth=6, subsample=1)
-cat_model = CatBoostClassifier(verbose=0)
+lgbm_model = LGBMClassifier(num_leaves=70, reg_alpha=28, feature_fraction=0.5983661429456115)
+xgb_model = XGBClassifier(max_depth=9, subsample=0.8, n_estimators=2700, eta=0.060000000000000005, reg_alpha=24, reg_lambda=73, min_child_weight=4, colsample_bytree=0.5511772671161806)
+cat_model = CatBoostClassifier(learning_rate=0.9475161771345497, bagging_temperature=75.84084011451753, n_estimators=288, max_depth=3, random_strength=1, colsample_bylevel=0.9105476377311172, l2_leaf_reg=2.3355249344481578e-05, min_child_samples=80, subsample=0.6296258880786431, leaf_estimation_iterations=4, verbose=0)
 
 model = VotingClassifier(
-    estimators=[('lgbb', lgbm_model), ('xgb', xgb_model), ('cat', cat_model)],
+    estimators=[('lgbm', lgbm_model), ('xgb', xgb_model), ('cat', cat_model)],
     voting='soft',
     n_jobs=-1,
-    verbose=1
+    verbose=0
 )
 
-
 # 3. 컴파일 (DL)
-
 
 # 4. 훈련
 classifier = [lgbm_model, xgb_model, cat_model]
@@ -101,11 +109,26 @@ acc = cross_val_score(model, x, y, cv=kfold)
 print("votting acc:", round(np.mean(acc), 16))
 print("time:", end_time-start_time)
 
-
 # 6. 데이터 시각화
 # 6-1. Heatmap
-# 6-2. Outliers
+
+
 # 6-3. Feature Importances
+# fi_datasets = datasets.drop(columns=['Is_Lead'])
+# n_features = fi_datasets.shape[1]
+# 6-3-1.XGBClassifier
+# plt.barh(range(n_features), xgb_model.feature_importances_, align="center")
+# 6-3-2.LGBMClassifier
+# plt.barh(range(n_features), lgbm_model.feature_importances_, align="center")
+# 6-3-3.CatBoostClassifier
+# plt.barh(range(n_features), cat_model.feature_importances_, align="center")
+
+# plt.yticks(np.arange(n_features), fi_datasets.columns)
+# plt.title("Credit Card Feature Importances")
+# plt.ylabel("Feature")
+# plt.xlabel("Importance")
+# plt.ylim(-1, n_features)
+# plt.show()
 
 
 # 7. 결과
@@ -123,3 +146,10 @@ print("time:", end_time-start_time)
 # ML - Votting / EllipticEnvelope(contamination=.37) / KFold(n_splits=8, random_state=72)
 # votting acc: 0.9016545624086946
 # time: 22.835328578948975
+
+# optuna 모두 적용
+# LGBMClassifier: 0.9014498956876806
+# XGBClassifier: 0.9016033954830142
+# CatBoostClassifier: 0.9009638244557125
+# votting acc: 0.9016161792789648
+# time: 40.226014852523804
