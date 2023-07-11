@@ -24,7 +24,6 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # 1. 데이터 전처리
-# data_path = "../data/credit_card_prediction/"  # 리눅스 환경
 data_path = "./data/credit_card_prediction/"
 datasets = pd.read_csv(data_path + "train.csv")
 
@@ -37,28 +36,11 @@ for i in range(len(string_columns)):
     datasets[string_columns[i]] = label_encoder.fit_transform(datasets[string_columns[i]])
 
 
-# 1-3. Heatmat & Outliers 처리 - EllipticEnvelop 적용
-# 1-3-1. Heatmap
-# sns.set(font_scale=1.2)
-# sns.set(rc={'figure.figsize' : (9, 6)}) # 가로,세로 사이즈 세팅
-# sns.heatmap(data=datasets.corr(), square=True, annot=True, cbar=True)
-# plt.show()
-
-
-# Index(['ID', 'Gender', 'Age', 'Region_Code', 'Occupation', 'Channel_Code',
-#        'Vintage', 'Credit_Product', 'Avg_Account_Balance', 'Is_Active',
-#        'Is_Lead'],
-#       dtype='object')
-# print(datasets.Age)
-
-# 1-3-2. Outliers
+# 1.3 Outliers 처리 - EllipticEnvelop 적용
 outliers_data = np.array(datasets.Vintage)
 outliers_data = outliers_data.reshape(-1, 1)
 
-# plt.boxplot(outliers_data)
-# plt.show()
-
-outliers = EllipticEnvelope(contamination=.2)  # ML Best Value
+outliers = EllipticEnvelope(contamination=.2)
 outliers.fit(outliers_data)
 result = outliers.predict(outliers_data)
 
@@ -69,19 +51,14 @@ datasets = datasets.reset_index(drop=True)
 x = datasets.drop(columns=['ID', 'Gender', 'Region_Code', 'Avg_Account_Balance', 'Is_Lead'])  # selectFromModel에서 나온 컴럼들로 구성
 y = datasets.Is_Lead
 
-# 1.5 NaN값 처리 - 최빈값으로 처리
-imputer = SimpleImputer(strategy="most_frequent")  # 최빈값
-imputer.fit(x)
-x = imputer.transform(x)
+# 1.5 train_test_split (DL)
 
-# 1.6 train_test_split (DL)
-
-# 1.6 KFold (ML)
+# 1.5 KFold (ML)
 n_splits = 8  # Best Value
 random_state = 623
 kfold = StratifiedKFold(n_splits=n_splits, random_state=random_state, shuffle=True)
 
-# 1-7. 스케일링
+# 1-6. 스케일링
 scaler = StandardScaler()  # Best Value
 x = scaler.fit_transform(x)
 
@@ -117,6 +94,7 @@ acc = cross_val_score(model, x, y, cv=kfold)
 print("votting acc:", round(np.mean(acc), 16))
 print("time:", end_time-start_time)
 
+
 # 6. 데이터 시각화
 # 6-1. Heatmap
 
@@ -139,8 +117,17 @@ print("time:", end_time-start_time)
 
 
 # 7. 결과
+# 7-1. Deep Learning
+
+# 7-2. Machine Learning
+# ML - Votting
 # LGBMClassifier: 0.8857936776211077
 # XGBClassifier: 0.8859054474454434
 # CatBoostClassifier: 0.8858800483758165
 # votting acc: 0.885946093721178
 # time: 83.06704425811768
+
+# 7-3. 최종 결과
+# ML - VottingClassifier(XGB, LGBM, Cat) / EllipticEnvelope(contamination=.2) / Drop['ID', 'Gender', 'Region_Code', 'Avg_Account_Balance', 'Is_Lead'] / StratifiedKfold(n_splits=8, random_state=623)
+# votting acc: 0.8857936765886167
+# time: 206.40080451965332

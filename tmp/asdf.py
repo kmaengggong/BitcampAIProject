@@ -1,8 +1,3 @@
-'''
-주제 : 신용카드 자격이 있는 사람과 없는 사람에 대한 데이터 분석하기
-목표 : train.csv만 갖고서, accuracy 0.85 이상 나오도록 할 것
-'''
-
 import datetime, time
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,6 +16,7 @@ from sklearn.model_selection import train_test_split
 
 
 # 1. 데이터 전처리
+# data_path = "../data/credit_card_prediction/"  # 리눅스 환경
 data_path = "./data/credit_card_prediction/"
 datasets = pd.read_csv(data_path + "train.csv")
 
@@ -41,24 +37,28 @@ outliers.fit(outliers_data)
 result = outliers.predict(outliers_data)
 
 datasets.drop(np.where(result == -1)[0], axis=0, inplace=True)  # 행 삭제
-datasets = datasets.reset_index(drop=True)
 
 # 1.4 불필요 Feature 제거
 x = datasets.drop(columns=['ID', 'Gender', 'Region_Code', 'Avg_Account_Balance', 'Is_Lead'])  # selectFromModel에서 나온 컴럼들로 구성
 y = datasets.Is_Lead
 
-# 1.5 train_test_split (DL)
+# 1.5 NaN값 처리 - 최빈값으로 처리
+imputer = SimpleImputer(strategy="most_frequent")  # 최빈값
+imputer.fit(x)
+x = imputer.transform(x)
+
+# 1.6 train_test_split (DL)
 x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=0.68, test_size=0.12, random_state=7211, shuffle=True)
 
-# 1.5 KFold (ML)
+# 1.6 KFold (ML)
 
-# 1-6. 스케일링
+# 1-7. 스케일링
 scaler = StandardScaler()  # Best Value
 x_train = scaler.fit_transform(x_train)
 x_test = scaler.transform(x_test)
 
 
-# 2. 모델 구성 - Sequential
+# 2. 모델 구성
 model = Sequential()
 model.add(Dense(128, input_dim=6, activation="relu"))
 model.add(Dense(64))
@@ -89,35 +89,3 @@ loss, acc = model.evaluate(x_test, y_test)
 print("loss:", loss)
 print("acc:", acc)
 print("time:", end_time-start_time)
-
-
-# 6. 데이터 시각화
-# 6-1. Heatmap
-# 6-2. Outliers
-# 6-3. Feature Importances
-
-
-# 7. 결과
-# 7-1. Deep Learning
-# DL - / NaN(최빈값) / Drop["Id"] / train_test_split.random_state=7211 / StandardScaler / Model: 128(relu) 8 16 32 64 128 256 512(relu) 256 64 32 15 8 1 / epochs=100, batch_size=128 / EarlyStopping=10
-# loss: 0.342851459980011
-# acc: 0.8620002269744873
-# time: 337.30227875709534
-
-# DL - / EllipticEnvelope(contamination=.34) / Drop['ID', 'Gender', 'Region_Code', 'Avg_Account_Balance', 'Is_Lead'] / train_test_split(train_size=0.68, test_size=0.12, random_state=7211) / Dense: 128(relu) 64 32(relu) 64 1 / model.fit(epochs=100)
-# loss: 0.27720940113067627
-# acc: 0.9039530754089355
-# time: 67.09893560409546
-
-# DL - / EllipticEnvelope(contamination=.34) / Drop['ID', 'Gender', 'Region_Code', 'Avg_Account_Balance', 'Is_Lead'] / train_test_split(train_size=0.68, test_size=0.12, random_state=2) / Dense: 128(relu) 64 32(relu) 64 1 / model.fit(epochs=100)
-# loss: 0.27680519223213196
-# acc: 0.9050339460372925*
-# time: 67.05005598068237
-
-# 7-1. Machine Learning
-
-# 7-3. 최종 결과
-# DL - Seqeuntial / EllipticEnvelope(contamination=.2) / Drop['ID', 'Gender', 'Region_Code', 'Avg_Account_Balance', 'Is_Lead'] / train_test_split(train_size=0.68, test_size=0.12, random_state=7211) / Dense: 128(relu) 64 32(relu) 64 1 / model.fit(epochs=100) / EarlyStopping(patience=10)
-# loss: 0.31116601824760437
-# acc: 0.8853090405464172
-# time: 387.51096296310425

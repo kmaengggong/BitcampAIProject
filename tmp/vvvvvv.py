@@ -21,6 +21,7 @@ from sklearn.model_selection import train_test_split
 
 
 # 1. 데이터 전처리
+# data_path = "../data/credit_card_prediction/"  # 리눅스 환경
 data_path = "./data/credit_card_prediction/"
 datasets = pd.read_csv(data_path + "train.csv")
 
@@ -33,34 +34,96 @@ for i in range(len(string_columns)):
     datasets[string_columns[i]] = label_encoder.fit_transform(datasets[string_columns[i]])
 
 # 1.3 Outliers 처리 - EllipticEnvelop 적용
+print("Before:", datasets.shape)
 outliers_data = np.array(datasets.Vintage)
 outliers_data = outliers_data.reshape(-1, 1)
-
-outliers = EllipticEnvelope(contamination=.34)  # DL Best Value
+outliers = EllipticEnvelope(contamination=.2)  # ML Best Value
 outliers.fit(outliers_data)
 result = outliers.predict(outliers_data)
-
 datasets.drop(np.where(result == -1)[0], axis=0, inplace=True)  # 행 삭제
-datasets = datasets.reset_index(drop=True)
+outliers_columns = ["Occupation", "Channel_Code"]
+
+for outlier_column in datasets.columns:#outliers_columns:
+    q1 = datasets[outlier_column].quantile(0.25)
+    q3 = datasets[outlier_column].quantile(0.75)
+    iqr = q3 - q1
+    outlier_threshold = 1.5 * iqr
+    outliers = datasets[(datasets[outlier_column] < q1 - outlier_threshold) | (datasets[outlier_column] > q3 + outlier_threshold)]
+    # datasets = datasets.drop(outliers.index)
+    plt.boxplot(datasets[outlier_column])
+    outliers_indices = outliers.index.tolist()
+    plt.scatter(outliers_indices, outliers[outlier_column], color='red')
+    plt.title(outlier_column)
+    plt.legend()
+    plt.show()
+    # outliers_low = datasets[(datasets['Vintage'] < q1 - outlier_threshold)]
+    # outliers_high = datasets[(datasets['Vintage'] > q3 + outlier_threshold)]
+
+# print("Before:", datasets['Vintage'].min(), datasets['Vintage'].max())
+# datasets.loc[outliers_low.index, 'Vintage'] = datasets['Vintage'].min()
+# datasets.loc[outliers_high.index, 'Vintage'] = datasets['Vintage'].max()
+# print("After:", datasets['Vintage'].min(), datasets['Vintage'].max())
+
+# plt.boxplot(datasets['Vintage'])
+# outliers_indices = outliers.index.tolist()
+# plt.scatter(outliers_indices, outliers['Vintage'], color='red')
+# plt.legend()
+# plt.show()
+# outliers_columns = datasets.drop(columns=["ID", "Is_Lead"]).columns#["Vintage"]#, "Age"]
+# contaminations = [.2]#[.2]#, .1]
+
+# for i in range(len(outliers_columns)):
+#     outliers_data = np.array(datasets[outliers_columns[i]])
+#     outliers_data = outliers_data.reshape(-1, 1)
+
+#     outliers = EllipticEnvelope(contamination=contaminations[i])  # DL Best Value
+#     outliers.fit(outliers_data)
+#     result = outliers.predict(outliers_data)
+
+#     drop_indices = np.where(result == -1)[0]
+#     datasets.drop(datasets.index[drop_indices], inplace=True)
+
+# fig, axes = plt.subplots(nrows=1, ncols=len(outliers_columns), figsize=(12, 6))
+
+# datasets = datasets.drop(datasets[datasets["Credit_Product"] == 2].index)
+# print(datasets[datasets["Credit_Product"] == 2])
+# for i, column in enumerate(outliers_columns):
+#     # axes[i].hist(datasets[column], bins=10)
+#     sns.kdeplot(data=datasets[column], fill=True, ax=axes[i])
+#     axes[i].set_xlabel(column)
+#     axes[i].set_ylabel('Value')
+
+# plt.tight_layout()
+# plt.show()
+
+print("After:", datasets.shape)
 
 # 1.4 불필요 Feature 제거
-x = datasets.drop(columns=['ID', 'Gender', 'Region_Code', 'Avg_Account_Balance', 'Is_Lead'])  # selectFromModel에서 나온 컴럼들로 구성
+# x = datasets.drop(columns=["ID", "Is_Lead"])
+x = datasets.drop(columns=['ID', 'Gender', 'Region_Code', 'Is_Lead'])
+#x = datasets.drop(columns=['ID', 'Gender', 'Region_Code', 'Is_Lead', 'Avg_Account_Balance'])  # selectFromModel에서 나온 컴럼들로 구성
 y = datasets.Is_Lead
 
-# 1.5 train_test_split (DL)
+# 1.5 NaN값 처리 - 최빈값으로 처리
+# imputer = SimpleImputer(strategy="most_frequent")  # 최빈값
+# imputer.fit(x)
+# x = imputer.transform(x)
+
+# 1.6 train_test_split (DL)
 x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=0.68, test_size=0.12, random_state=7211, shuffle=True)
 
-# 1.5 KFold (ML)
+# 1.6 KFold (ML)
 
-# 1-6. 스케일링
+# 1-7. 스케일링
 scaler = StandardScaler()  # Best Value
 x_train = scaler.fit_transform(x_train)
 x_test = scaler.transform(x_test)
 
 
-# 2. 모델 구성 - Sequential
+# 2. 모델 구성
 model = Sequential()
-model.add(Dense(128, input_dim=6, activation="relu"))
+# model.add(Dense(128, input_dim=9, activation="relu"))
+model.add(Dense(128, input_dim=7, activation="relu"))
 model.add(Dense(64))
 model.add(Dense(32, activation="relu"))
 model.add(Dense(64))
@@ -113,11 +176,3 @@ print("time:", end_time-start_time)
 # loss: 0.27680519223213196
 # acc: 0.9050339460372925*
 # time: 67.05005598068237
-
-# 7-1. Machine Learning
-
-# 7-3. 최종 결과
-# DL - Seqeuntial / EllipticEnvelope(contamination=.2) / Drop['ID', 'Gender', 'Region_Code', 'Avg_Account_Balance', 'Is_Lead'] / train_test_split(train_size=0.68, test_size=0.12, random_state=7211) / Dense: 128(relu) 64 32(relu) 64 1 / model.fit(epochs=100) / EarlyStopping(patience=10)
-# loss: 0.31116601824760437
-# acc: 0.8853090405464172
-# time: 387.51096296310425
